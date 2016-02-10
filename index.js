@@ -1,4 +1,5 @@
 var invariant = require('turf-invariant');
+var extent = require('turf-extent');
 
 // http://en.wikipedia.org/wiki/Even%E2%80%93odd_rule
 // modified from: https://github.com/substack/point-in-polygon/blob/master/index.js
@@ -66,6 +67,13 @@ module.exports = function(point, polygon) {
   invariant.featureOf(point, 'Point', 'inside');
   var polys = polygon.geometry.coordinates;
   var pt = [point.geometry.coordinates[0], point.geometry.coordinates[1]];
+
+  //Run Bounding box check first
+  var polyBbox = extent(polygon);
+  if (pt[0] <= polyBbox[0] || pt[0] >= polyBbox[2] || pt[1] <= polyBbox[1] || pt[1] >= polyBbox[3]) {
+    return false;
+  }
+
   // normalize to multipolygon
   if (polygon.geometry.type === 'Polygon') polys = [polys];
 
