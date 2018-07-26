@@ -1,4 +1,4 @@
-# DEPRECATED - replaced by [`@turf/inside`](https://github.com/Turfjs/turf/tree/master/packages/turf-inside)
+# DEPRECATED - replaced by [`@turf/boolean-contains`](https://github.com/Turfjs/turf/tree/master/packages/turf-boolean-contains)
 # turf-inside
 
 [![build status](https://secure.travis-ci.org/Turfjs/turf-inside.png)](http://travis-ci.org/Turfjs/turf-inside)
