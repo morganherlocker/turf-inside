@@ -62,3 +62,25 @@ test('multipolygon with hole', function (t) {
 
   t.end();
 });
+
+test('points on boundary treated consistently', function (t) {
+  var ul = [-79.4586181640625,39.53793974517629];
+  var ur = [ul[0] + 0.03, ul[1]];
+  var ll = [ul[0], ul[1] + 0.03];
+  var lr = [ll[0] + 0.03, ll[1]];
+  var ml = [ul[0], ul[1]*0.5 + ll[1]*0.5];
+  var mr = [ur[0], ul[1]*0.5 + ll[1]*0.5];
+  var um = [ul[0]*0.5 + ur[0]*.5, ul[1]];
+  var lm = [ll[0]*0.5 + lr[0]*.5, ul[1]];
+
+  var points = [ul, ur, ll, lr, ml, mr, um, lm].map(point);
+
+  var poly = polygon([[ul, ur, lr, ll, ul]]);
+
+  var allEqual = true
+  for (var i = 0; i < points.length - 1; i++) {
+    allEqual = allEqual && (inside(points[i], poly) === inside(points[i + 1], poly))
+  }
+  t.ok(allEqual)
+  t.end()
+});
