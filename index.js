@@ -1,4 +1,6 @@
 var invariant = require('turf-invariant');
+var normalize = require('turf-normalize');
+var flatten = require('turf-flatten');
 
 // http://en.wikipedia.org/wiki/Even%E2%80%93odd_rule
 // modified from: https://github.com/substack/point-in-polygon/blob/master/index.js
@@ -62,33 +64,107 @@ var invariant = require('turf-invariant');
  * var isInside2 = turf.inside(pt2, poly);
  * //=isInside2
  */
-module.exports = function(point, polygon) {
+module.exports = function(point, surface) {
   invariant.featureOf(point, 'Point', 'inside');
-  var polys = polygon.geometry.coordinates;
+
+  if(surface.type === 'Feature' &&
+     (surface.geometry.type === 'Polygon' ||
+     surface.geometry.type === 'LineString' ||
+     surface.geometry.type === 'Point')) return pointInSingle(point, surface);
+  else {
+    var fc = normalize(flatten(surface));
+    var isInside = false;
+    for(var i = 0; i < fc.features.length; i++) {
+      if(fc.features[i].geometry.type === 'MultiPolygon' ||
+         fc.features[i].geometry.type === 'MultiLineString' ||
+         fc.features[i].geometry.type === 'MultiPoint') {
+        var multiFC = flatten(normalize(fc.features[i]));
+
+        for(var k = 0; k < multiFC.features.length; k++) {
+          if(pointInSingle(point, multiFC.features[k])) {
+            isInside = true;
+            break;
+          }
+        }
+      } else {
+        if(pointInSingle(point, fc.features[i])) {
+          isInside = true;
+          break;
+        }
+      }
+    }
+    return isInside;
+  }
+};
+
+function pointInSingle(point, feature) {
+  if(feature.geometry.type === 'Point') return pointInPoint(point, feature);
+  if(feature.geometry.type === 'LineString') return pointInLineString(point, feature);
+  else if(feature.geometry.type === 'Polygon') return pointInPolygon(point, feature);
+}
+
+function pointInPolygon (point, polygon) {
+  var poly = polygon.geometry.coordinates;
   var pt = [point.geometry.coordinates[0], point.geometry.coordinates[1]];
   // normalize to multipolygon
-  if (polygon.geometry.type === 'Polygon') polys = [polys];
 
   var insidePoly = false;
-  var i = 0;
-  while (i < polys.length && !insidePoly) {
     // check if it is in the outer ring first
-    if(inRing(pt, polys[i][0])) {
-      var inHole = false;
-      var k = 1;
-      // check for the point in any of the holes
-      while(k < polys[i].length && !inHole) {
-        if(inRing(pt, polys[i][k])) {
-          inHole = true;
-        }
-        k++;
+  if(inRing(pt, poly[0])) {
+    var inHole = false;
+    var k = 1;
+    // check for the point in any of the holes
+    while(k < poly.length && !inHole) {
+      if(inRing(pt, poly[k])) {
+        inHole = true;
+        break;
       }
-      if(!inHole) insidePoly = true;
+      k++;
     }
-    i++;
+    if(!inHole) insidePoly = true;
   }
+
   return insidePoly;
-};
+}
+
+function pointInPoint (pt1, pt2) {
+  if(pt1.geometry.coordinates[0] === pt2.geometry.coordinates[0] &&
+    pt1.geometry.coordinates[1] === pt2.geometry.coordinates[1]) {
+    return true;
+  } else {
+    return false;
+  }
+}
+
+function pointInLineString (point, line) {
+  var onLine = false;
+  var k = 0;
+  while(!onLine && k < line.geometry.coordinates.length - 1) {
+    var x = point.geometry.coordinates[0];
+    var y = point.geometry.coordinates[1];
+    var x1 = line.geometry.coordinates[k][0];
+    var y1 = line.geometry.coordinates[k][1];
+    var x2 = line.geometry.coordinates[k+1][0];
+    var y2 = line.geometry.coordinates[k+1][1];
+    if((x === x1 && y === y1) ||
+       (x === x2 && y === y2) ||
+        pointOnSegment(x, y, x1, y1, x2, y2)) {
+      onLine = true;
+      break;
+    }
+    k++;
+  }
+  return onLine;
+}
+
+function pointOnSegment (x, y, x1, y1, x2, y2) {
+  var ab = Math.sqrt((x2-x1)*(x2-x1)+(y2-y1)*(y2-y1));
+  var ap = Math.sqrt((x-x1)*(x-x1)+(y-y1)*(y-y1));
+  var pb = Math.sqrt((x2-x)*(x2-x)+(y2-y)*(y2-y));
+  if(ab === ap + pb) {
+    return true;
+  }
+}
 
 // pt is [x,y] and ring is [[x,y], [x,y],..]
 function inRing (pt, ring) {
